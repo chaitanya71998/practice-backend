@@ -25,13 +25,17 @@ const initializeDBAndServer = async () => {
   }
 };
 
+initializeDBAndServer();
+
 // get all movies names api
 app.get("/movies/", async (request, response) => {
   const getMoviesListQuery = "SELECT movie_name FROM movie";
 
   const moviesList = await db.all(getMoviesListQuery);
   const formattedMoviesList = moviesList.map((movie) => {
-    movieName: movie;
+    return {
+      movieName: movie.movie_name,
+    };
   });
   response.send(formattedMoviesList);
 });
@@ -43,7 +47,7 @@ app.post("/movies/", async (request, response) => {
     INSERT INTO  
     movie(movie_name,lead_actor,director_id)
     VALUES(
-       "${movieName}",${leadActor},"${directorId}"
+       "${movieName}","${leadActor}",${directorId}
     );
 `;
   await db.run(updateMovieQuery);
@@ -61,12 +65,12 @@ app.get("/movies/:movieId/", async (request, response) => {
     WHERE
         movie_id = ${movieId};`;
 
-  const movie = await db.get(getMovieQuery);
+  const movie = await db.all(getMovieQuery);
   response.send({
-    movieId: movie.movie_id,
-    directorId: movie.director_id,
-    movieName: movie.movie_name,
-    leadActor: movie.lead_actor,
+    movieId: movie[0].movie_id,
+    directorId: movie[0].director_id,
+    movieName: movie[0].movie_name,
+    leadActor: movie[0].lead_actor,
   });
 });
 
@@ -79,7 +83,7 @@ app.put("/movies/:movieId/", async (request, response) => {
     UPDATE
         movie
     SET
-      movie_name = ${movieName},  lead_actor ='${leadActor}',director_id=${directorId},role='${role}'
+      movie_name = "${movieName}",  lead_actor ='${leadActor}',director_id=${directorId}
     WHERE
         movie_id = ${movieId};`;
 
@@ -114,5 +118,23 @@ app.get("/directors/", async (request, response) => {
   });
   response.send(formattedDirectorsList);
 });
+// get list of all movie names directed by a specific director
+app.get("/directors/:directorId/movies/", async (request, response) => {
+  const { directorId } = request.params;
+  const getMovieNamesList = `
+  SELECT 
+  movie_name
+  FROM
+  movie
+  WHERE
+  director_id = ${directorId}`;
 
+  const moviesNamesList = await db.all(getMovieNamesList);
+  const formattedMovieNamesList = moviesNamesList.map((movie) => {
+    return {
+      movieName: movie.movie_name,
+    };
+  });
+  response.send(formattedMovieNamesList);
+});
 module.exports = app;
