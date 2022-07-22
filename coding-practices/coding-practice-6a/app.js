@@ -30,7 +30,6 @@ initializeDBAndServer();
 // Returns a list of all states in the state table
 app.get("/states/", async (request, response) => {
   const getStatesListQuery = "SELECT * FROM state";
-
   const statesList = await db.all(getStatesListQuery);
   const formattedStatesList = statesList.map((state) => {
     return {
@@ -45,8 +44,7 @@ app.get("/states/", async (request, response) => {
 //Returns a state based on the state ID
 app.get("/states/:stateId/", async (request, response) => {
   const { stateId } = request.params;
-  const getStateQuery = `SELECT * FROM movie where state_id = ${stateId}`;
-
+  const getStateQuery = `SELECT * FROM state where state_id = ${stateId}`;
   const stateList = await db.all(getStateQuery);
   const formattedStateArray = stateList.map((state) => {
     return {
@@ -64,7 +62,6 @@ app.post("/districts/", async (request, response) => {
   const createDistrictQuery = `
     INSERT INTO  
     district(
-        district_id,
         district_name,
         state_id,
         cases,
@@ -72,7 +69,7 @@ app.post("/districts/", async (request, response) => {
         active,
         deaths)
     VALUES(
-      ${districtName}, ${stateId}, ${cases}, ${cured}, ${active}, ${deaths} 
+      "${districtName}", ${stateId}, ${cases}, ${cured}, ${active}, ${deaths} 
     );
 `;
   await db.run(createDistrictQuery);
@@ -80,7 +77,7 @@ app.post("/districts/", async (request, response) => {
 });
 
 //Returns a district based on the district ID
-app.get("districts/:districtId/", async (request, response) => {
+app.get("/districts/:districtId/", async (request, response) => {
   const { districtId } = request.params;
   const getDistrictQuery = `
         SELECT
@@ -93,13 +90,13 @@ app.get("districts/:districtId/", async (request, response) => {
 
   const districtArray = await db.all(getDistrictQuery);
   const formattedDistrict = {
-    districtId: districtArray.district_id,
-    districtName: districtArray.district_name,
-    stateId: districtArray.state_id,
-    cases: districtArray.case,
-    cured: districtArray.cured,
-    active: districtArray.active,
-    deaths: districtArray.deaths,
+    districtId: districtArray[0].district_id,
+    districtName: districtArray[0].district_name,
+    stateId: districtArray[0].state_id,
+    cases: districtArray[0].cases,
+    cured: districtArray[0].cured,
+    active: districtArray[0].active,
+    deaths: districtArray[0].deaths,
   };
   response.send(formattedDistrict);
 });
@@ -153,25 +150,17 @@ app.get("/states/:stateId/stats/", async (request, response) => {
         `;
 
   const districtsArray = await db.all(getDistrictsQuery);
-  const totalCases = districtsArray.reduce(sumOfTotalCases, 0); // with initial value to avoid when the array is empty
-  const totalCured = districtsArray.reduce(sumOfTotalCured, 0); // with initial value to avoid when the array is empty
-  const totalActive = districtsArray.reduce(sumOfTotalActive, 0); // with initial value to avoid when the array is empty
-  const totalDeaths = districtsArray.reduce(sumOfTotalDeaths, 0); // with initial value to avoid when the array is empty
 
-  function sumOfTotalCases(district, a) {
-    return district.cases + a;
-  }
-
-  function sumOfTotalCured(district, a) {
-    return district.cured + a;
-  }
-  function sumOfTotalActive(district, a) {
-    return district.active + a;
-  }
-
-  function sumOfTotalDeaths(district, a) {
-    return district.deaths + a;
-  }
+  let totalCases = 0;
+  let totalCured = 0;
+  let totalActive = 0;
+  let totalDeaths = 0;
+  districtsArray.map((district) => {
+    totalCases += district.cases;
+    totalCured += district.cured;
+    totalActive += district.active;
+    totalDeaths += district.deaths;
+  });
 
   const formattedStateStats = {
     totalCases: totalCases,
@@ -185,13 +174,24 @@ app.get("/states/:stateId/stats/", async (request, response) => {
 //Returns an object containing the state name of a district based on the district ID
 app.get("/districts/:districtId/details/", async (request, response) => {
   const { districtId } = request.params;
+   const getDistrictQuery = `
+        SELECT
+        *
+        FROM
+        district
+        where
+        district_id = ${districtId}
+        `;
+
+  const districtArray = await db.all(getDistrictQuery);
+  const stateId = districtArray[0].state_id
   const getStateNameQuery = `
   SELECT 
-  state_name
+  *
   FROM
   state
   WHERE
-  district_id = ${districtId}`;
+  state_id = ${stateId}`;
 
   const stateNameList = await db.all(getStateNameQuery);
   const formattedStateName = {
